@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
+import { SyncUserWithConvex } from "@/components/SyncUserWithConvex";
 
 export default function RootLayout({
   children,
@@ -33,6 +34,7 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           <ConvexClientProvider>
+            <SyncUserWithConvex />
             {children}
           </ConvexClientProvider>
         </body>
