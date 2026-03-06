@@ -1,17 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 
 export default function UsersDiscoveryPage() {
   const { user, isLoaded } = useUser();
   const users = useQuery(api.users.getUsers, user ? { clerkId: user.id } : "skip");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredUsers = users?.filter(u => 
+    u.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
   return (
     <main className="flex min-h-screen flex-col p-8 bg-gray-50">
@@ -26,6 +33,16 @@ export default function UsersDiscoveryPage() {
       </header>
 
       <div className="w-full max-w-4xl mx-auto">
+        <div className="mb-6">
+          <Input 
+            type="text" 
+            placeholder="Search users by name..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full max-w-md bg-white border-gray-300"
+          />
+        </div>
+
         {!isLoaded || users === undefined ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -38,14 +55,16 @@ export default function UsersDiscoveryPage() {
               </Card>
             ))}
           </div>
-        ) : users.length === 0 ? (
+        ) : filteredUsers.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No other users found</h3>
-            <p className="text-gray-500">When other people sign up, they will appear here.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+            <p className="text-gray-500">
+              {searchQuery ? `No users match "${searchQuery}"` : "When other people sign up, they will appear here."}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <Card key={u._id} className="p-4 hover:shadow-md transition-shadow border-gray-200">
                 <CardContent className="p-0 flex items-center gap-4">
                   <Avatar className="h-12 w-12 border border-gray-100">
