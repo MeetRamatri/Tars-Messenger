@@ -13,7 +13,12 @@ export default function ChatPage() {
           </Link>
           <h1 className="text-2xl font-bold">Chat</h1>
         </div>
-        <UserButton />
+        <div className="flex items-center gap-4">
+          <Link href="/users" className="text-blue-600 hover:text-blue-800 font-medium px-4 py-2 border border-blue-200 bg-blue-50 rounded-lg transition-colors">
+            Find Users &rarr;
+          </Link>
+          <UserButton />
+        </div>
       </header>
       <div className="flex-1 flex flex-col items-center justify-center p-24 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
         <p className="text-gray-500">Chat interface will go here.</p>

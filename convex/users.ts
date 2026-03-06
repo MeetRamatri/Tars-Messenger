@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const storeUser = mutation({
@@ -28,5 +28,13 @@ export const storeUser = mutation({
         });
 
         return newUserId;
+    },
+});
+
+export const getUsers = query({
+    args: { clerkId: v.string() },
+    handler: async (ctx, args) => {
+        const users = await ctx.db.query("users").collect();
+        return users.filter((user) => user.clerkId !== args.clerkId);
     },
 });
