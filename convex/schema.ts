@@ -15,6 +15,7 @@ export default defineSchema({
         participantTwo: v.string(), // clerkId
         lastMessage: v.optional(v.string()),
         updatedAt: v.number(),
+        typing: v.optional(v.array(v.string())),
     }).index("by_participantOne", ["participantOne"])
         .index("by_participantTwo", ["participantTwo"]),
 

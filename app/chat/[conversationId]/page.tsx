@@ -14,22 +14,73 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
   const { user } = useUser();
   const [newMessage, setNewMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const messages = useQuery(api.messages.getMessages, { 
     conversationId: params.conversationId as Id<"conversations"> 
   });
+  const conversation = useQuery(api.conversations.getConversation, user ? {
+    conversationId: params.conversationId as Id<"conversations">,
+    clerkId: user.id
+  } : "skip");
+
   const sendMessage = useMutation(api.messages.sendMessage);
+  const setTyping = useMutation(api.conversations.setTyping);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, conversation?.typing]);
+
+  // Clean up typing on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (user) {
+        setTyping({
+          conversationId: params.conversationId as Id<"conversations">,
+          clerkId: user.id,
+          isTyping: false,
+        });
+      }
+    };
+  }, [user, params.conversationId, setTyping]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    
+    if (!user) return;
+    
+    setTyping({
+      conversationId: params.conversationId as Id<"conversations">,
+      clerkId: user.id,
+      isTyping: true,
+    });
+    
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      setTyping({
+        conversationId: params.conversationId as Id<"conversations">,
+        clerkId: user.id,
+        isTyping: false,
+      });
+    }, 2000);
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    setTyping({
+      conversationId: params.conversationId as Id<"conversations">,
+      clerkId: user.id,
+      isTyping: false,
+    });
 
     try {
       await sendMessage({
@@ -121,6 +172,23 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
                 );
               })
             )}
+
+            {conversation?.typing?.filter(id => id !== user?.id).length ? (
+              <div className="flex gap-3 w-full justify-start items-center">
+                <Avatar className="h-8 w-8 mt-1 border border-gray-100 flex-shrink-0">
+                  <AvatarImage src={conversation.otherUser?.avatar} />
+                  <AvatarFallback className="text-xs bg-blue-50 text-blue-700">
+                    {conversation.otherUser?.name?.charAt(0) || "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="bg-white border border-gray-200 text-gray-400 rounded-2xl rounded-tl-sm px-4 py-2 shadow-sm flex items-center gap-1 mt-1">
+                  <span className="animate-bounce inline-block w-1 h-1 bg-gray-400 rounded-full"></span>
+                  <span className="animate-bounce inline-block w-1 h-1 bg-gray-400 rounded-full" style={{ animationDelay: '0.2s' }}></span>
+                  <span className="animate-bounce inline-block w-1 h-1 bg-gray-400 rounded-full" style={{ animationDelay: '0.4s' }}></span>
+                </div>
+              </div>
+            ) : null}
+
             <div ref={scrollRef} />
           </div>
         </ScrollArea>
@@ -134,7 +202,7 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
               placeholder="Type your message..."
               className="pr-20 py-6 rounded-full border-gray-300 focus-visible:ring-blue-500 bg-gray-50"
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={handleInputChange}
               disabled={messages === undefined}
             />
             <button

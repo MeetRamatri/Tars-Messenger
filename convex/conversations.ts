@@ -82,3 +82,51 @@ export const getMyConversations = query({
         return enrichedConversations;
     },
 });
+
+export const getConversation = query({
+    args: { conversationId: v.id("conversations"), clerkId: v.string() },
+    handler: async (ctx, args) => {
+        const conversation = await ctx.db.get(args.conversationId);
+        if (!conversation) return null;
+
+        const otherParticipantId =
+            conversation.participantOne === args.clerkId
+                ? conversation.participantTwo
+                : conversation.participantOne;
+
+        const otherUser = await ctx.db
+            .query("users")
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", otherParticipantId))
+            .unique();
+
+        return {
+            ...conversation,
+            otherUser,
+        };
+    },
+});
+
+export const setTyping = mutation({
+    args: {
+        conversationId: v.id("conversations"),
+        clerkId: v.string(),
+        isTyping: v.boolean(),
+    },
+    handler: async (ctx, args) => {
+        const conversation = await ctx.db.get(args.conversationId);
+        if (!conversation) return;
+
+        let typing = conversation.typing || [];
+
+        if (args.isTyping) {
+            if (!typing.includes(args.clerkId)) {
+                typing.push(args.clerkId);
+            }
+        } else {
+            typing = typing.filter((id) => id !== args.clerkId);
+        }
+
+        await ctx.db.patch(args.conversationId, { typing });
+    },
+});
+
