@@ -58,12 +58,17 @@ export function Sidebar() {
                     : "hover:bg-gray-50 border-transparent"
                 }`}
               >
-                <Avatar className="h-12 w-12 border border-gray-100 flex-shrink-0">
-                  <AvatarImage src={otherUser.avatar} alt={otherUser.name} />
-                  <AvatarFallback className="bg-blue-100 text-blue-700">
-                    {otherUser.name?.charAt(0) || "?"}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-12 w-12 border border-gray-100 flex-shrink-0">
+                    <AvatarImage src={otherUser.avatar} alt={otherUser.name} />
+                    <AvatarFallback className="bg-blue-100 text-blue-700">
+                      {otherUser.name?.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  {otherUser.isOnline && (
+                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full z-10"></span>
+                  )}
+                </div>
                 
                 <div className="flex-1 min-w-0 overflow-hidden">
                   <div className="flex justify-between items-baseline mb-0.5">

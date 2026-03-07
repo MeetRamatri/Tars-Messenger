@@ -31,6 +31,24 @@ export const storeUser = mutation({
     },
 });
 
+export const updatePresence = mutation({
+    args: {
+        clerkId: v.string(),
+        isOnline: v.boolean()
+    },
+    handler: async (ctx, args) => {
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+            .unique();
+
+        if (user !== null) {
+            await ctx.db.patch(user._id, { isOnline: args.isOnline });
+        }
+    },
+});
+
+
 export const getUsers = query({
     args: { clerkId: v.string() },
     handler: async (ctx, args) => {

@@ -88,12 +88,17 @@ export default function UsersDiscoveryPage() {
               >
                 <Card className="p-4 hover:shadow-md transition-all hover:border-blue-300 border-gray-200">
                   <CardContent className="p-0 flex items-center gap-4">
-                    <Avatar className="h-12 w-12 border border-gray-100">
-                      <AvatarImage src={u.avatar} alt={u.name} />
-                      <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
-                        {u.name?.charAt(0) || "?"}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="h-12 w-12 border border-gray-100">
+                        <AvatarImage src={u.avatar} alt={u.name} />
+                        <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
+                          {u.name?.charAt(0) || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      {u.isOnline && (
+                        <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full z-10"></span>
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 truncate">{u.name}</h3>
                       <p className="text-sm text-gray-500 whitespace-nowrap">Click to chat</p>
