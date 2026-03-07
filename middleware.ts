@@ -2,9 +2,17 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isProtectedRoute = createRouteMatcher(["/chat(.*)", "/users(.*)"]);
 
-export default clerkMiddleware(async (auth, req) => {
+export default clerkMiddleware((auth, req) => {
+    // Let Clerk safely process internal handshakes without edge exceptions
+    if (req.nextUrl.searchParams.has('__clerk_handshake')) {
+        return;
+    }
+
     if (isProtectedRoute(req)) {
-        await auth().protect();
+        const { userId } = auth();
+        if (!userId) {
+            return auth().redirectToSignIn();
+        }
     }
 });
 
