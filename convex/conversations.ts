@@ -32,6 +32,7 @@ export const getOrCreate = mutation({
         const newChatId = await ctx.db.insert("conversations", {
             participantOne: args.participantOne,
             participantTwo: args.participantTwo,
+            participants: [args.participantOne, args.participantTwo],
             updatedAt: Date.now(),
         });
 
@@ -39,44 +40,72 @@ export const getOrCreate = mutation({
     },
 });
 
+export const createGroup = mutation({
+    args: {
+        name: v.string(),
+        participants: v.array(v.string()),
+        createdBy: v.string()
+    },
+    handler: async (ctx, args) => {
+        if (args.participants.length < 2) throw new Error("Groups require at least 2 participants.");
+
+        const newChatId = await ctx.db.insert("conversations", {
+            name: args.name,
+            isGroup: true,
+            participants: args.participants,
+            createdBy: args.createdBy,
+            updatedAt: Date.now(),
+        });
+
+        return newChatId;
+    }
+});
+
 export const getMyConversations = query({
     args: { clerkId: v.string() },
     handler: async (ctx, args) => {
-        // Get all conversations where user is participantOne
-        const asParticipantOne = await ctx.db
-            .query("conversations")
-            .withIndex("by_participantOne", (q) => q.eq("participantOne", args.clerkId))
-            .collect();
+        const allConversations = await ctx.db.query("conversations").collect();
+        const myConversations = allConversations
+            .filter(c =>
+                (c.participants || []).includes(args.clerkId) ||
+                c.participantOne === args.clerkId ||
+                c.participantTwo === args.clerkId
+            )
+            .sort((a, b) => b.updatedAt - a.updatedAt);
 
-        // Get all conversations where user is participantTwo
-        const asParticipantTwo = await ctx.db
-            .query("conversations")
-            .withIndex("by_participantTwo", (q) => q.eq("participantTwo", args.clerkId))
-            .collect();
-
-        // Combine and sort by updated time descending
-        const allConversations = [...asParticipantOne, ...asParticipantTwo].sort(
-            (a, b) => b.updatedAt - a.updatedAt
-        );
-
-        // Fetch the other user's details for each conversation
         const enrichedConversations = await Promise.all(
-            allConversations.map(async (conv) => {
-                const isParticipantOne = conv.participantOne === args.clerkId;
-                const otherParticipantId = isParticipantOne ? conv.participantTwo : conv.participantOne;
+            myConversations.map(async (conv) => {
+                if (conv.isGroup) {
+                    return {
+                        ...conv,
+                        otherUser: null,
+                        unreadCount: 0 // Optional: build unread tracking for groups later
+                    };
+                } else {
+                    const isParticipantOne = conv.participantOne === args.clerkId;
+                    const otherParticipantId = isParticipantOne ? conv.participantTwo : conv.participantOne;
 
-                const unreadCount = isParticipantOne ? (conv.unread1 || 0) : (conv.unread2 || 0);
+                    let finalOtherId = otherParticipantId;
+                    if (!finalOtherId && conv.participants) {
+                        finalOtherId = conv.participants.find(p => p !== args.clerkId);
+                    }
 
-                const otherUser = await ctx.db
-                    .query("users")
-                    .withIndex("by_clerkId", (q) => q.eq("clerkId", otherParticipantId))
-                    .unique();
+                    const unreadCount = isParticipantOne ? (conv.unread1 || 0) : (conv.unread2 || 0);
 
-                return {
-                    ...conv,
-                    otherUser,
-                    unreadCount
-                };
+                    let otherUser = null;
+                    if (finalOtherId) {
+                        otherUser = await ctx.db
+                            .query("users")
+                            .withIndex("by_clerkId", (q) => q.eq("clerkId", finalOtherId!))
+                            .unique();
+                    }
+
+                    return {
+                        ...conv,
+                        otherUser,
+                        unreadCount
+                    };
+                }
             })
         );
 
@@ -89,12 +118,13 @@ export const markAsRead = mutation({
     handler: async (ctx, args) => {
         const conversation = await ctx.db.get(args.conversationId);
         if (!conversation) return;
+        if (conversation.isGroup) return; // Skip updating unreads for groups currently
 
         if (conversation.participantOne === args.clerkId) {
             if ((conversation.unread1 || 0) > 0) {
                 await ctx.db.patch(args.conversationId, { unread1: 0 });
             }
-        } else if (conversation.participantTwo === args.clerkId) {
+        } else {
             if ((conversation.unread2 || 0) > 0) {
                 await ctx.db.patch(args.conversationId, { unread2: 0 });
             }
@@ -108,15 +138,30 @@ export const getConversation = query({
         const conversation = await ctx.db.get(args.conversationId);
         if (!conversation) return null;
 
+        if (conversation.isGroup) {
+            return {
+                ...conversation,
+                otherUser: null
+            };
+        }
+
         const otherParticipantId =
             conversation.participantOne === args.clerkId
                 ? conversation.participantTwo
                 : conversation.participantOne;
 
-        const otherUser = await ctx.db
-            .query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", otherParticipantId))
-            .unique();
+        let finalOtherId = otherParticipantId;
+        if (!finalOtherId && conversation.participants) {
+            finalOtherId = conversation.participants.find(p => p !== args.clerkId);
+        }
+
+        let otherUser = null;
+        if (finalOtherId) {
+            otherUser = await ctx.db
+                .query("users")
+                .withIndex("by_clerkId", (q) => q.eq("clerkId", finalOtherId!))
+                .unique();
+        }
 
         return {
             ...conversation,

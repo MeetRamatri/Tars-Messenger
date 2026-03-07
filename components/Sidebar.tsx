@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePathname } from "next/navigation";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Users } from "lucide-react";
 
 export function Sidebar() {
   const { user, isLoaded } = useUser();
@@ -52,8 +52,48 @@ export function Sidebar() {
         ) : (
           conversations.map((conv) => {
             const isActive = pathname === `/chat/${conv._id}`;
-            const otherUser = conv.otherUser;
 
+            if (conv.isGroup) {
+              const memberCount = conv.participants?.length || 0;
+              const displayName = `${conv.name} (${memberCount})`;
+              return (
+                <Link 
+                  key={conv._id} 
+                  href={`/chat/${conv._id}`}
+                  className={`group flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer border ${
+                    isActive 
+                      ? "bg-blue-50/80 border-blue-100 shadow-sm" 
+                      : "hover:bg-blue-50/50 hover:border-blue-100/50 border-transparent hover:translate-x-1"
+                  }`}
+                >
+                  <div className="relative">
+                    <div className="h-12 w-12 rounded-full border border-gray-100 flex-shrink-0 transition-transform duration-300 group-hover:scale-105 shadow-sm bg-blue-100 text-blue-700 flex items-center justify-center">
+                      <Users className="w-6 h-6" />
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex justify-between items-baseline mb-0.5">
+                      <h3 className={`font-semibold text-sm truncate pr-2 ${conv.unreadCount > 0 && !isActive ? 'text-gray-900' : 'text-gray-700'}`}>
+                        {displayName}
+                      </h3>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className={`text-xs truncate ${conv.unreadCount > 0 && !isActive ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                        {conv.lastMessage || "No messages yet"}
+                      </p>
+                      {conv.unreadCount > 0 && !isActive && (
+                        <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                          {conv.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            }
+
+            const otherUser = conv.otherUser;
             if (!otherUser) return null; // Fallback if data sync hasn't occurred
 
             return (

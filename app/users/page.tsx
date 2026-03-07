@@ -11,13 +11,18 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { Users, SearchX } from "lucide-react";
+import { Users, SearchX, Check } from "lucide-react";
 
 export default function UsersDiscoveryPage() {
   const { user, isLoaded } = useUser();
   const users = useQuery(api.users.getUsers, user ? { clerkId: user.id } : "skip");
   const getOrCreateConversation = useMutation(api.conversations.getOrCreate);
+  const createGroup = useMutation(api.conversations.createGroup);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isGroupMode, setIsGroupMode] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [groupName, setGroupName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
 
   const filteredUsers = users?.filter(u => 
@@ -37,6 +42,36 @@ export default function UsersDiscoveryPage() {
     }
   };
 
+  const handleUserClick = (otherUserId: string) => {
+    if (isGroupMode) {
+      setSelectedUsers(prev => 
+        prev.includes(otherUserId) 
+          ? prev.filter(id => id !== otherUserId)
+          : [...prev, otherUserId]
+      );
+    } else {
+      handleStartChat(otherUserId);
+    }
+  };
+
+  const handleCreateGroup = async () => {
+    if (!user || selectedUsers.length < 1 || !groupName.trim()) return;
+    setIsCreating(true);
+    try {
+      // Group participants must include the creator
+      const participants = [...selectedUsers, user.id];
+      const conversationId = await createGroup({
+        name: groupName.trim(),
+        participants,
+        createdBy: user.id
+      });
+      router.push(`/chat/${conversationId}`);
+    } catch (error) {
+      console.error("Failed to create group:", error);
+      setIsCreating(false);
+    }
+  };
+
   return (
     <main className="flex min-h-screen flex-col p-8 bg-gray-50">
       <header className="flex justify-between items-center w-full max-w-4xl mx-auto mb-8 pb-4 border-b border-gray-200">
@@ -46,7 +81,23 @@ export default function UsersDiscoveryPage() {
           </Link>
           <h1 className="text-2xl font-bold">Discover Users</h1>
         </div>
-        <UserButton />
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              setIsGroupMode(!isGroupMode);
+              setSelectedUsers([]);
+              setGroupName("");
+            }}
+            className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${
+              isGroupMode 
+                ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                : "bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100"
+            }`}
+          >
+            {isGroupMode ? "Cancel Group" : "Create Group"}
+          </button>
+          <UserButton />
+        </div>
       </header>
 
       <div className="w-full max-w-4xl mx-auto">
@@ -94,25 +145,32 @@ export default function UsersDiscoveryPage() {
               <div 
                 key={u._id} 
                 className="cursor-pointer" 
-                onClick={() => handleStartChat(u.clerkId)}
+                onClick={() => handleUserClick(u.clerkId)}
               >
-                <Card className="p-4 hover:shadow-md transition-all hover:border-blue-300 border-gray-200">
-                  <CardContent className="p-0 flex items-center gap-4">
-                    <div className="relative">
-                      <Avatar className="h-12 w-12 border border-gray-100">
-                        <AvatarImage src={u.avatar} alt={u.name} />
-                        <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
-                          {u.name?.charAt(0) || "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                      {u.isOnline && (
-                        <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full z-10"></span>
-                      )}
+                <Card className={`p-4 hover:shadow-md transition-all border-gray-200 ${isGroupMode && selectedUsers.includes(u.clerkId) ? 'ring-2 ring-blue-500 bg-blue-50/50' : 'hover:border-blue-300'}`}>
+                  <CardContent className="p-0 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="relative">
+                        <Avatar className="h-12 w-12 border border-gray-100">
+                          <AvatarImage src={u.avatar} alt={u.name} />
+                          <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
+                            {u.name?.charAt(0) || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        {u.isOnline && (
+                          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full z-10"></span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate">{u.name}</h3>
+                        <p className="text-sm text-gray-500 whitespace-nowrap">{isGroupMode ? "Click to select" : "Click to chat"}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">{u.name}</h3>
-                      <p className="text-sm text-gray-500 whitespace-nowrap">Click to chat</p>
-                    </div>
+                    {isGroupMode && (
+                      <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors flex-shrink-0 ${selectedUsers.includes(u.clerkId) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                        {selectedUsers.includes(u.clerkId) && <Check className="w-4 h-4 text-white" />}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -120,6 +178,34 @@ export default function UsersDiscoveryPage() {
           </div>
         )}
       </div>
+
+      {isGroupMode && selectedUsers.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] animate-in slide-in-from-bottom-2 z-50">
+          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex-1 w-full">
+              <Input
+                placeholder="Group Name (e.g. Frontend Team)"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="w-full border-gray-300"
+                maxLength={50}
+              />
+            </div>
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              <span className="text-sm text-gray-500 whitespace-nowrap hidden sm:inline-block">
+                {selectedUsers.length} selected
+              </span>
+              <button
+                onClick={handleCreateGroup}
+                disabled={!groupName.trim() || isCreating || selectedUsers.length < 1}
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isCreating ? "Creating..." : "Create Group"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

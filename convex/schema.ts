@@ -11,13 +11,17 @@ export default defineSchema({
     }).index("by_clerkId", ["clerkId"]),
 
     conversations: defineTable({
-        participantOne: v.string(), // clerkId
-        participantTwo: v.string(), // clerkId
+        name: v.optional(v.string()),
+        isGroup: v.optional(v.boolean()),
+        participants: v.array(v.string()), // array of clerkIds
+        createdBy: v.optional(v.string()), // clerkId
+        participantOne: v.optional(v.string()), // deprecated
+        participantTwo: v.optional(v.string()), // deprecated
         lastMessage: v.optional(v.string()),
         updatedAt: v.number(),
         typing: v.optional(v.array(v.string())),
-        unread1: v.optional(v.number()),
-        unread2: v.optional(v.number()),
+        unread1: v.optional(v.number()), // deprecated
+        unread2: v.optional(v.number()), // deprecated
     }).index("by_participantOne", ["participantOne"])
         .index("by_participantTwo", ["participantTwo"]),
 

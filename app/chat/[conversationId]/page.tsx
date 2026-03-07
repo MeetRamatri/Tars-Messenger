@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Id } from "../../../convex/_generated/dataModel";
 import Link from "next/link";
-import { Trash2, SmilePlus, Loader2, AlertCircle } from "lucide-react";
+import { Trash2, SmilePlus, Loader2, AlertCircle, Users } from "lucide-react";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
 
@@ -241,8 +241,14 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </Link>
-          <div className="flex items-center gap-3">
-            {conversation?.otherUser && (
+          <div className="flex items-center gap-3 cursor-default">
+            {conversation?.isGroup ? (
+              <div className="relative">
+                <div className="h-10 w-10 rounded-full border border-gray-100 flex-shrink-0 bg-blue-100 text-blue-700 flex items-center justify-center">
+                  <Users className="w-5 h-5" />
+                </div>
+              </div>
+            ) : conversation?.otherUser ? (
               <div className="relative">
                 <Avatar className="h-10 w-10 border border-gray-100 flex-shrink-0">
                   <AvatarImage src={conversation.otherUser.avatar} />
@@ -254,10 +260,17 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
                   <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full z-10"></span>
                 )}
               </div>
-            )}
-            <h1 className="text-lg font-semibold truncate">
-              {conversation?.otherUser?.name || "Loading..."}
-            </h1>
+            ) : null}
+            <div className="flex flex-col gap-1 overflow-hidden">
+              <h1 className="text-lg font-semibold truncate">
+                {conversation?.isGroup 
+                  ? `${conversation.name} (${conversation.participants?.length || 0})` 
+                  : conversation?.otherUser?.name || "Loading..."}
+              </h1>
+              {conversation?.isGroup && (
+                <p className="text-xs text-gray-500 truncate">Group Chat</p>
+              )}
+            </div>
           </div>
         </div>
         <UserButton />
@@ -285,18 +298,28 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
               </div>
             ) : messages.length === 0 ? (
                <div className="flex flex-col items-center justify-center p-8 mt-10 space-y-4">
-                 <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center">
-                   <Avatar className="h-20 w-20 border-4 border-white shadow-sm">
-                     <AvatarImage src={conversation?.otherUser?.avatar} />
-                     <AvatarFallback className="bg-blue-100 text-blue-700 text-2xl font-medium">
-                       {conversation?.otherUser?.name?.charAt(0) || "?"}
-                     </AvatarFallback>
-                   </Avatar>
+                 <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-2 shadow-sm">
+                   {conversation?.isGroup ? (
+                     <Users className="w-12 h-12 text-blue-500" />
+                   ) : (
+                     <Avatar className="h-20 w-20 border-4 border-white shadow-sm">
+                       <AvatarImage src={conversation?.otherUser?.avatar} />
+                       <AvatarFallback className="bg-blue-100 text-blue-700 text-2xl font-medium">
+                         {conversation?.otherUser?.name?.charAt(0) || "?"}
+                       </AvatarFallback>
+                     </Avatar>
+                   )}
                  </div>
                  <div className="text-center">
-                   <h3 className="text-lg font-medium text-gray-900">Say hi to {conversation?.otherUser?.name?.split(' ')[0]}!</h3>
-                   <p className="text-sm text-gray-500 mt-1">
-                     Send a message to kick off the conversation.
+                   <h3 className="text-xl font-medium text-gray-900">
+                     {conversation?.isGroup 
+                       ? `Welcome to ${conversation.name}` 
+                       : `Say hi to ${conversation?.otherUser?.name?.split(' ')[0]}!`}
+                   </h3>
+                   <p className="text-sm text-gray-500 mt-2 max-w-sm mx-auto">
+                     {conversation?.isGroup 
+                       ? "You've created a new group. Send a message to kick off the conversation." 
+                       : "Send a message to kick off the conversation."}
                    </p>
                  </div>
                </div>
