@@ -13,7 +13,10 @@ import { Id } from "../../../convex/_generated/dataModel";
 export default function SingleChatPage({ params }: { params: { conversationId: string } }) {
   const { user } = useUser();
   const [newMessage, setNewMessage] = useState("");
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const messages = useQuery(api.messages.getMessages, { 
@@ -38,12 +41,51 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
     }
   }, [user, params.conversationId, messages, markAsRead]);
 
-  // Auto-scroll to bottom of messages
+  // Auto-scroll logic
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
+    if (!messages) return;
+
+    if (isAtBottom) {
+      // If we're already at bottom, stay at bottom
+      scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      // If we're not at bottom, check if this message was sent by us
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.senderId === user?.id) {
+        scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+        setIsAtBottom(true);
+        setHasNewMessages(false);
+      } else {
+        // Someone else sent a message while we were scrolled up
+        setHasNewMessages(true);
+      }
     }
-  }, [messages, conversation?.typing]);
+  }, [messages, isAtBottom, user?.id]);
+
+  // Keep typing indicator visible if at bottom
+  useEffect(() => {
+    if (isAtBottom && conversation?.typing?.length) {
+      scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [conversation?.typing, isAtBottom]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    // Consider "at bottom" if within 100px of the very bottom
+    const atBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    setIsAtBottom(atBottom);
+    
+    if (atBottom && hasNewMessages) {
+      setHasNewMessages(false);
+    }
+  };
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    setIsAtBottom(true);
+    setHasNewMessages(false);
+  };
 
   // Clean up typing on unmount
   useEffect(() => {
@@ -138,8 +180,11 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
         <UserButton />
       </header>
       
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <ScrollArea className="flex-1 px-4 py-6">
+      <div className="flex-1 overflow-hidden flex flex-col relative">
+        <ScrollArea 
+          className="flex-1 px-4 py-6"
+          onScrollCapture={handleScroll}
+        >
           <div className="flex flex-col gap-4 max-w-4xl mx-auto pb-4">
             {messages === undefined ? (
                <div className="text-center text-gray-400 mt-10">Loading messages...</div>
@@ -203,6 +248,15 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
             <div ref={scrollRef} />
           </div>
         </ScrollArea>
+
+        {hasNewMessages && !isAtBottom && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-blue-600 text-white font-medium px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 z-20"
+          >
+            New messages ↓
+          </button>
+        )}
 
         <div className="p-4 bg-white border-t border-gray-200">
           <form 
