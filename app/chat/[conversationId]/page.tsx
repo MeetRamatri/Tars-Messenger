@@ -10,16 +10,33 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Id } from "../../../convex/_generated/dataModel";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { Trash2, SmilePlus } from "lucide-react";
+
+const EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
 
 export default function SingleChatPage({ params }: { params: { conversationId: string } }) {
   const { user } = useUser();
   const [newMessage, setNewMessage] = useState("");
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [activeReactionMessageId, setActiveReactionMessageId] = useState<Id<"messages"> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reactionPickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (reactionPickerRef.current && !reactionPickerRef.current.contains(event.target as Node)) {
+        setActiveReactionMessageId(null);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const messages = useQuery(api.messages.getMessages, { 
     conversationId: params.conversationId as Id<"conversations"> 
@@ -31,6 +48,7 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
 
   const sendMessage = useMutation(api.messages.sendMessage);
   const deleteMessage = useMutation(api.messages.deleteMessage);
+  const toggleReaction = useMutation(api.messages.toggleReaction);
   const setTyping = useMutation(api.conversations.setTyping);
   const markAsRead = useMutation(api.conversations.markAsRead);
 
@@ -162,6 +180,20 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
     }
   };
 
+  const handleReaction = async (messageId: Id<"messages">, emoji: string) => {
+    if (!user) return;
+    try {
+      await toggleReaction({
+        messageId,
+        emoji,
+        clerkId: user.id
+      });
+      setActiveReactionMessageId(null);
+    } catch (error) {
+      console.error("Failed to toggle reaction:", error);
+    }
+  };
+
   const formatTimestamp = (timestamp: number) => {
     const messageDate = new Date(timestamp);
     const now = new Date();
@@ -263,7 +295,7 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
                     <div className={`max-w-[75%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                       {!isMe && <span className="text-[11px] font-medium text-gray-500 mb-1 ml-1">{msg.sender?.name}</span>}
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 group/msg relative">
                         {isMe && !msg.deleted && (
                           <button
                             onClick={() => handleDeleteMessage(msg._id)}
@@ -273,8 +305,43 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
+                        
+                        {!msg.deleted && (
+                          <div className={`transition-all flex items-center ${isMe ? "order-first" : "order-last"} relative ${activeReactionMessageId === msg._id ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                            <div className="relative">
+                              <button
+                                onClick={() => setActiveReactionMessageId(activeReactionMessageId === msg._id ? null : msg._id)}
+                                className={`p-1.5 rounded-full transition-colors ${activeReactionMessageId === msg._id ? "text-blue-500 bg-blue-50" : "text-gray-400 hover:text-blue-500 hover:bg-blue-50"}`}
+                                title="Add reaction"
+                              >
+                                <SmilePlus className="w-4 h-4" />
+                              </button>
+                              
+                              {activeReactionMessageId === msg._id && (
+                                <div 
+                                  ref={reactionPickerRef}
+                                  className={`absolute bottom-full mb-2 flex bg-white shadow-lg border border-gray-100 rounded-full px-2 py-1 gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 ${isMe ? "right-[-10px]" : "left-[-10px]"}`}
+                                >
+                                  {EMOJIS.map(emoji => (
+                                    <button
+                                      key={emoji}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        handleReaction(msg._id, emoji);
+                                      }}
+                                      className="hover:bg-gray-100 rounded-full p-1 text-lg transition-transform duration-200 hover:scale-[1.3] active:scale-95 origin-bottom"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         <div 
-                          className={`px-4 py-2.5 rounded-2xl ${
+                          className={`px-4 py-2.5 rounded-2xl relative z-10 ${
                             msg.deleted
                               ? "bg-gray-50 border border-gray-200 text-gray-500 italic shadow-sm"
                               : isMe 
@@ -286,6 +353,28 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
                           {msg.deleted ? "This message was deleted" : msg.body}
                         </div>
                       </div>
+                      
+                      {!msg.deleted && msg.reactions && msg.reactions.length > 0 && (
+                        <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end mr-1' : 'justify-start ml-1'}`}>
+                          {msg.reactions.map(r => {
+                            const hasReacted = r.users.includes(user?.id || "");
+                            return (
+                              <button
+                                key={r.emoji}
+                                onClick={() => handleReaction(msg._id, r.emoji)}
+                                className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full border transition-colors ${
+                                  hasReacted
+                                    ? "bg-blue-50 border-blue-200 text-blue-700"
+                                    : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                }`}
+                              >
+                                <span>{r.emoji}</span>
+                                <span className="font-semibold text-[10px]">{r.users.length}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                       
                       <span className={`text-[10px] text-gray-400 mt-1 ${isMe ? "mr-1" : "ml-1"}`}>
                         {formatTimestamp(msg.createdAt)}

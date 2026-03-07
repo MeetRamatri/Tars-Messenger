@@ -27,5 +27,11 @@ export default defineSchema({
         body: v.string(),
         createdAt: v.number(),
         deleted: v.optional(v.boolean()),
+        reactions: v.optional(v.array(
+            v.object({
+                emoji: v.string(),
+                users: v.array(v.string()) // array of clerkIds
+            })
+        )),
     }).index("by_conversationId", ["conversationId"]),
 });

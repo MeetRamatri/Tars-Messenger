@@ -93,3 +93,38 @@ export const deleteMessage = mutation({
         // or we could query the *next* most recent message. 
     }
 });
+
+export const toggleReaction = mutation({
+    args: {
+        messageId: v.id("messages"),
+        emoji: v.string(),
+        clerkId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const message = await ctx.db.get(args.messageId);
+        if (!message) throw new Error("Message not found");
+
+        let reactions = message.reactions || [];
+        const reactionIndex = reactions.findIndex(r => r.emoji === args.emoji);
+
+        if (reactionIndex !== -1) {
+            const userIndex = reactions[reactionIndex].users.indexOf(args.clerkId);
+            if (userIndex !== -1) {
+                // Toggle off: remove user
+                reactions[reactionIndex].users.splice(userIndex, 1);
+                // Remove emoji struct entirely if no users left
+                if (reactions[reactionIndex].users.length === 0) {
+                    reactions.splice(reactionIndex, 1);
+                }
+            } else {
+                // Add user to existing emoji list
+                reactions[reactionIndex].users.push(args.clerkId);
+            }
+        } else {
+            // Add completely new emoji to the reactions list
+            reactions.push({ emoji: args.emoji, users: [args.clerkId] });
+        }
+
+        await ctx.db.patch(args.messageId, { reactions });
+    }
+});
