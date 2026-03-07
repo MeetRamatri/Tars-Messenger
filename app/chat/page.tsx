@@ -4,7 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 
 export default function ChatPage() {
   return (
-    <main className="flex-1 flex flex-col h-full bg-white relative">
+    <main className="hidden md:flex flex-1 flex-col h-[100dvh] bg-white relative">
       <header className="absolute top-0 right-0 p-4">
         <UserButton />
       </header>
