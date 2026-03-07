@@ -72,13 +72,20 @@ export function Sidebar() {
                 
                 <div className="flex-1 min-w-0 overflow-hidden">
                   <div className="flex justify-between items-baseline mb-0.5">
-                    <h3 className="font-semibold text-sm truncate pr-2 text-gray-900">
+                    <h3 className={`font-semibold text-sm truncate pr-2 ${conv.unreadCount > 0 && !isActive ? 'text-gray-900' : 'text-gray-700'}`}>
                       {otherUser.name}
                     </h3>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">
-                    {conv.lastMessage || "No messages yet"}
-                  </p>
+                  <div className="flex justify-between items-center">
+                    <p className={`text-xs truncate ${conv.unreadCount > 0 && !isActive ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                      {conv.lastMessage || "No messages yet"}
+                    </p>
+                    {conv.unreadCount > 0 && !isActive && (
+                      <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                        {conv.unreadCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             );

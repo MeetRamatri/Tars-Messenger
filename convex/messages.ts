@@ -17,10 +17,24 @@ export const sendMessage = mutation({
         });
 
         // 2. Update the conversation with the last message preview and new timestamp
-        await ctx.db.patch(args.conversationId, {
-            lastMessage: args.body,
-            updatedAt: Date.now(),
-        });
+        const conversation = await ctx.db.get(args.conversationId);
+        if (conversation) {
+            let unread1 = conversation.unread1 || 0;
+            let unread2 = conversation.unread2 || 0;
+
+            if (conversation.participantOne === args.senderId) {
+                unread2 += 1;
+            } else {
+                unread1 += 1;
+            }
+
+            await ctx.db.patch(args.conversationId, {
+                lastMessage: args.body,
+                updatedAt: Date.now(),
+                unread1,
+                unread2,
+            });
+        }
 
         return messageId;
     },

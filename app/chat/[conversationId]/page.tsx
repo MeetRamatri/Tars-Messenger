@@ -26,6 +26,17 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
 
   const sendMessage = useMutation(api.messages.sendMessage);
   const setTyping = useMutation(api.conversations.setTyping);
+  const markAsRead = useMutation(api.conversations.markAsRead);
+
+  // Mark as read when opening chat or receiving new messages
+  useEffect(() => {
+    if (user && params.conversationId) {
+      markAsRead({
+        conversationId: params.conversationId as Id<"conversations">,
+        clerkId: user.id
+      });
+    }
+  }, [user, params.conversationId, messages, markAsRead]);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {

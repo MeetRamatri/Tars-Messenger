@@ -62,10 +62,10 @@ export const getMyConversations = query({
         // Fetch the other user's details for each conversation
         const enrichedConversations = await Promise.all(
             allConversations.map(async (conv) => {
-                const otherParticipantId =
-                    conv.participantOne === args.clerkId
-                        ? conv.participantTwo
-                        : conv.participantOne;
+                const isParticipantOne = conv.participantOne === args.clerkId;
+                const otherParticipantId = isParticipantOne ? conv.participantTwo : conv.participantOne;
+
+                const unreadCount = isParticipantOne ? (conv.unread1 || 0) : (conv.unread2 || 0);
 
                 const otherUser = await ctx.db
                     .query("users")
@@ -75,12 +75,31 @@ export const getMyConversations = query({
                 return {
                     ...conv,
                     otherUser,
+                    unreadCount
                 };
             })
         );
 
         return enrichedConversations;
     },
+});
+
+export const markAsRead = mutation({
+    args: { conversationId: v.id("conversations"), clerkId: v.string() },
+    handler: async (ctx, args) => {
+        const conversation = await ctx.db.get(args.conversationId);
+        if (!conversation) return;
+
+        if (conversation.participantOne === args.clerkId) {
+            if ((conversation.unread1 || 0) > 0) {
+                await ctx.db.patch(args.conversationId, { unread1: 0 });
+            }
+        } else if (conversation.participantTwo === args.clerkId) {
+            if ((conversation.unread2 || 0) > 0) {
+                await ctx.db.patch(args.conversationId, { unread2: 0 });
+            }
+        }
+    }
 });
 
 export const getConversation = query({

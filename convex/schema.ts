@@ -16,6 +16,8 @@ export default defineSchema({
         lastMessage: v.optional(v.string()),
         updatedAt: v.number(),
         typing: v.optional(v.array(v.string())),
+        unread1: v.optional(v.number()),
+        unread2: v.optional(v.number()),
     }).index("by_participantOne", ["participantOne"])
         .index("by_participantTwo", ["participantTwo"]),
 
