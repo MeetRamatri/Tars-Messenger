@@ -16,4 +16,11 @@ export default defineSchema({
         updatedAt: v.number(),
     }).index("by_participantOne", ["participantOne"])
         .index("by_participantTwo", ["participantTwo"]),
+
+    messages: defineTable({
+        conversationId: v.id("conversations"),
+        senderId: v.string(), // clerkId
+        body: v.string(),
+        createdAt: v.number(),
+    }).index("by_conversationId", ["conversationId"]),
 });
