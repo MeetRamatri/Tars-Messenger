@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,15 +10,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 export default function UsersDiscoveryPage() {
   const { user, isLoaded } = useUser();
   const users = useQuery(api.users.getUsers, user ? { clerkId: user.id } : "skip");
+  const getOrCreateConversation = useMutation(api.conversations.getOrCreate);
   const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
 
   const filteredUsers = users?.filter(u => 
     u.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  const handleStartChat = async (otherUserId: string) => {
+    if (!user) return;
+    try {
+      const conversationId = await getOrCreateConversation({
+        participantOne: user.id,
+        participantTwo: otherUserId,
+      });
+      router.push(`/chat/${conversationId}`);
+    } catch (error) {
+      console.error("Failed to start chat:", error);
+    }
+  };
 
   return (
     <main className="flex min-h-screen flex-col p-8 bg-gray-50">
@@ -65,19 +81,26 @@ export default function UsersDiscoveryPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredUsers.map((u) => (
-              <Card key={u._id} className="p-4 hover:shadow-md transition-shadow border-gray-200">
-                <CardContent className="p-0 flex items-center gap-4">
-                  <Avatar className="h-12 w-12 border border-gray-100">
-                    <AvatarImage src={u.avatar} alt={u.name} />
-                    <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
-                      {u.name?.charAt(0) || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">{u.name}</h3>
-                  </div>
-                </CardContent>
-              </Card>
+              <div 
+                key={u._id} 
+                className="cursor-pointer" 
+                onClick={() => handleStartChat(u.clerkId)}
+              >
+                <Card className="p-4 hover:shadow-md transition-all hover:border-blue-300 border-gray-200">
+                  <CardContent className="p-0 flex items-center gap-4">
+                    <Avatar className="h-12 w-12 border border-gray-100">
+                      <AvatarImage src={u.avatar} alt={u.name} />
+                      <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
+                        {u.name?.charAt(0) || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 truncate">{u.name}</h3>
+                      <p className="text-sm text-gray-500 whitespace-nowrap">Click to chat</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             ))}
           </div>
         )}
