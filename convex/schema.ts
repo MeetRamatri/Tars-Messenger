@@ -13,7 +13,7 @@ export default defineSchema({
     conversations: defineTable({
         name: v.optional(v.string()),
         isGroup: v.optional(v.boolean()),
-        participants: v.array(v.string()), // array of clerkIds
+        participants: v.optional(v.array(v.string())), // array of clerkIds
         createdBy: v.optional(v.string()), // clerkId
         participantOne: v.optional(v.string()), // deprecated
         participantTwo: v.optional(v.string()), // deprecated
