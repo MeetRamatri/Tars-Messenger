@@ -43,9 +43,28 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
     }
   };
 
-  const getDayAndMonth = (timestamp: number) => {
-    const d = new Date(timestamp);
-    return `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  const formatTimestamp = (timestamp: number) => {
+    const messageDate = new Date(timestamp);
+    const now = new Date();
+    
+    // Reset time parts for accurate day comparisons
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const msgDateOnly = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+    
+    const timeOptions: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+    
+    // Today
+    if (msgDateOnly.getTime() === today.getTime()) {
+      return messageDate.toLocaleTimeString([], timeOptions);
+    }
+    
+    // Same year
+    if (messageDate.getFullYear() === now.getFullYear()) {
+      return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ", " + messageDate.toLocaleTimeString([], timeOptions);
+    }
+    
+    // Different year
+    return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ", " + messageDate.toLocaleTimeString([], timeOptions);
   };
 
   return (
@@ -95,7 +114,7 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
                       </div>
                       
                       <span className="text-[10px] text-gray-400 mt-1 mx-1">
-                        {getDayAndMonth(msg.createdAt)}
+                        {formatTimestamp(msg.createdAt)}
                       </span>
                     </div>
                   </div>
