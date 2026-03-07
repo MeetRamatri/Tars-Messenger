@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const getOrCreate = mutation({
@@ -36,5 +36,49 @@ export const getOrCreate = mutation({
         });
 
         return newChatId;
+    },
+});
+
+export const getMyConversations = query({
+    args: { clerkId: v.string() },
+    handler: async (ctx, args) => {
+        // Get all conversations where user is participantOne
+        const asParticipantOne = await ctx.db
+            .query("conversations")
+            .withIndex("by_participantOne", (q) => q.eq("participantOne", args.clerkId))
+            .collect();
+
+        // Get all conversations where user is participantTwo
+        const asParticipantTwo = await ctx.db
+            .query("conversations")
+            .withIndex("by_participantTwo", (q) => q.eq("participantTwo", args.clerkId))
+            .collect();
+
+        // Combine and sort by updated time descending
+        const allConversations = [...asParticipantOne, ...asParticipantTwo].sort(
+            (a, b) => b.updatedAt - a.updatedAt
+        );
+
+        // Fetch the other user's details for each conversation
+        const enrichedConversations = await Promise.all(
+            allConversations.map(async (conv) => {
+                const otherParticipantId =
+                    conv.participantOne === args.clerkId
+                        ? conv.participantTwo
+                        : conv.participantOne;
+
+                const otherUser = await ctx.db
+                    .query("users")
+                    .withIndex("by_clerkId", (q) => q.eq("clerkId", otherParticipantId))
+                    .unique();
+
+                return {
+                    ...conv,
+                    otherUser,
+                };
+            })
+        );
+
+        return enrichedConversations;
     },
 });
