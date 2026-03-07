@@ -24,7 +24,6 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
   const [activeReactionMessageId, setActiveReactionMessageId] = useState<Id<"messages"> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reactionPickerRef = useRef<HTMLDivElement | null>(null);
 

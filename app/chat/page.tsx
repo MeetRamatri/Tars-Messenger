@@ -12,7 +12,7 @@ export default function ChatPage() {
         <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 max-w-sm">
           <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome to Tars Messenger</h2>
           <p className="text-gray-500 text-sm">
-            Select a conversation from the sidebar or click "New Chat" to discover users.
+            Select a conversation from the sidebar or click &quot;New Chat&quot; to discover users.
           </p>
         </div>
       </div>
