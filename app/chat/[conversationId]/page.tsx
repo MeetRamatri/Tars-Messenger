@@ -8,9 +8,10 @@ import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Id } from "../../../convex/_generated/dataModel";
 import Link from "next/link";
-import { Trash2, SmilePlus } from "lucide-react";
+import { Trash2, SmilePlus, Loader2, AlertCircle } from "lucide-react";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
 
@@ -19,6 +20,8 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
   const [newMessage, setNewMessage] = useState("");
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
   const [activeReactionMessageId, setActiveReactionMessageId] = useState<Id<"messages"> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -144,9 +147,10 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
     }, 2000);
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !user) return;
+  const handleSendMessage = async (e?: React.FormEvent, contentToRetry?: string) => {
+    if (e) e.preventDefault();
+    const content = contentToRetry || newMessage.trim();
+    if (!content || !user) return;
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     
@@ -156,15 +160,24 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
       isTyping: false,
     });
 
+    setIsSending(true);
+    setFailedMessage(null);
+
     try {
       await sendMessage({
         conversationId: params.conversationId as Id<"conversations">,
         senderId: user.id,
-        body: newMessage.trim(),
+        body: content,
       });
-      setNewMessage("");
+      if (!contentToRetry) {
+        setNewMessage("");
+      }
     } catch (err) {
       console.error("Failed to send message:", err);
+      setFailedMessage(content);
+    } finally {
+      setIsSending(false);
+      setTimeout(() => scrollToBottom(), 100);
     }
   };
 
@@ -257,7 +270,19 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
         >
           <div className="flex flex-col gap-4 max-w-4xl mx-auto pb-4">
             {messages === undefined ? (
-               <div className="text-center text-gray-400 mt-10">Loading messages...</div>
+              <div className="flex flex-col gap-4 w-full mt-4">
+                {[1, 2, 3, 4, 5, 6].map((i) => {
+                  const isMe = i % 2 === 0;
+                  return (
+                    <div key={i} className={`flex gap-3 w-full ${isMe ? "justify-end" : "justify-start"}`}>
+                      {!isMe && <Skeleton className="h-8 w-8 rounded-full mt-auto mb-1 flex-shrink-0" />}
+                      <div className={`flex flex-col gap-1 max-w-[75%] ${isMe ? "items-end" : "items-start"}`}>
+                        <Skeleton className={`h-10 rounded-2xl ${i === 1 ? 'w-32' : i === 2 ? 'w-64' : i === 3 ? 'w-48' : i === 4 ? 'w-24' : 'w-56'} ${isMe ? 'rounded-br-sm' : 'rounded-bl-sm'}`} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : messages.length === 0 ? (
                <div className="flex flex-col items-center justify-center p-8 mt-10 space-y-4">
                  <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center">
@@ -408,30 +433,52 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
         {hasNewMessages && !isAtBottom && (
           <button
             onClick={scrollToBottom}
-            className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-blue-600 text-white font-medium px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 z-20"
+            className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-blue-600 text-white font-medium px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 z-20"
           >
             New messages ↓
           </button>
         )}
 
-        <div className="p-4 bg-white border-t border-gray-200">
+        <div className="p-4 bg-white border-t border-gray-200 flex flex-col gap-2 relative">
+          {failedMessage && (
+            <div className="max-w-4xl mx-auto w-full flex items-center justify-between bg-red-50 border border-red-100 text-red-600 px-4 py-2.5 rounded-xl text-sm animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                <span className="font-medium">Failed to send message</span>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setFailedMessage(null)}
+                  className="font-medium hover:text-red-800 transition-colors px-2 py-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => handleSendMessage(undefined, failedMessage)}
+                  className="bg-white text-red-600 font-semibold px-3 py-1 rounded-full shadow-sm border border-red-100 hover:bg-red-50 transition-all active:scale-95"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
           <form 
-            onSubmit={handleSendMessage} 
-            className="max-w-4xl mx-auto relative flex items-center"
+            onSubmit={(e) => handleSendMessage(e)} 
+            className="max-w-4xl mx-auto w-full relative flex items-center"
           >
             <Input
               placeholder="Message..."
               className="pr-24 py-6 rounded-full border-gray-200 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 bg-white shadow-sm transition-all"
               value={newMessage}
               onChange={handleInputChange}
-              disabled={messages === undefined}
+              disabled={messages === undefined || isSending}
             />
             <button
               type="submit"
-              disabled={!newMessage.trim() || messages === undefined}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-medium rounded-full px-5 py-2 text-sm transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:shadow-none active:scale-95"
+              disabled={!newMessage.trim() || messages === undefined || isSending}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-medium rounded-full px-5 py-2 text-sm transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:shadow-none active:scale-95 flex items-center justify-center min-w-[80px]"
             >
-              Send
+              {isSending ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : "Send"}
             </button>
           </form>
         </div>
