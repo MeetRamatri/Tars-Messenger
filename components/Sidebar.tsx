@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePathname } from "next/navigation";
+import { MessageSquare } from "lucide-react";
 
 export function Sidebar() {
   const { user, isLoaded } = useUser();
@@ -37,9 +38,16 @@ export function Sidebar() {
             </div>
           ))
         ) : conversations.length === 0 ? (
-          <div className="text-center p-6 mt-10">
-            <p className="text-gray-500 text-sm">No conversations yet.</p>
-            <p className="text-gray-400 text-xs mt-1">Start one by finding users!</p>
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center space-y-4 mt-10">
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-blue-500">
+              <MessageSquare className="w-8 h-8 stroke-[1.5]" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">No conversations</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Your chats will appear here once you start messaging friends.
+              </p>
+            </div>
           </div>
         ) : (
           conversations.map((conv) => {
@@ -52,21 +60,21 @@ export function Sidebar() {
               <Link 
                 key={conv._id} 
                 href={`/chat/${conv._id}`}
-                className={`flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer border ${
+                className={`group flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer border ${
                   isActive 
-                    ? "bg-blue-50 border-blue-100" 
-                    : "hover:bg-gray-50 border-transparent"
+                    ? "bg-blue-50/80 border-blue-100 shadow-sm" 
+                    : "hover:bg-blue-50/50 hover:border-blue-100/50 border-transparent hover:translate-x-1"
                 }`}
               >
                 <div className="relative">
-                  <Avatar className="h-12 w-12 border border-gray-100 flex-shrink-0">
+                  <Avatar className="h-12 w-12 border border-gray-100 flex-shrink-0 transition-transform duration-300 group-hover:scale-105 shadow-sm">
                     <AvatarImage src={otherUser.avatar} alt={otherUser.name} />
-                    <AvatarFallback className="bg-blue-100 text-blue-700">
+                    <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
                       {otherUser.name?.charAt(0) || "?"}
                     </AvatarFallback>
                   </Avatar>
                   {otherUser.isOnline && (
-                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full z-10"></span>
+                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full z-10 shadow-sm"></span>
                   )}
                 </div>
                 

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { Users, SearchX } from "lucide-react";
 
 export default function UsersDiscoveryPage() {
   const { user, isLoaded } = useUser();
@@ -72,11 +73,20 @@ export default function UsersDiscoveryPage() {
             ))}
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
-            <p className="text-gray-500">
-              {searchQuery ? `No users match "${searchQuery}"` : "When other people sign up, they will appear here."}
-            </p>
+          <div className="flex flex-col items-center justify-center py-24 text-center space-y-4 bg-white rounded-2xl border border-dashed border-gray-200">
+            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-400">
+              {searchQuery ? <SearchX className="w-8 h-8 stroke-[1.5]" /> : <Users className="w-8 h-8 stroke-[1.5]" />}
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">
+                {searchQuery ? "No matches found" : "No users yet"}
+              </h3>
+              <p className="text-gray-500 mt-1 max-w-sm mx-auto">
+                {searchQuery 
+                  ? `We couldn't find anyone named "${searchQuery}". Check the spelling and try again.` 
+                  : "We're waiting for other people to join. Check back later to start chatting!"}
+              </p>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
