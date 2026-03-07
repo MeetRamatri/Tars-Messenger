@@ -26,5 +26,6 @@ export default defineSchema({
         senderId: v.string(), // clerkId
         body: v.string(),
         createdAt: v.number(),
+        deleted: v.optional(v.boolean()),
     }).index("by_conversationId", ["conversationId"]),
 });

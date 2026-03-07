@@ -67,3 +67,29 @@ export const getMessages = query({
         return enrichedMessages;
     },
 });
+
+export const deleteMessage = mutation({
+    args: {
+        messageId: v.id("messages"),
+        clerkId: v.string()
+    },
+    handler: async (ctx, args) => {
+        const message = await ctx.db.get(args.messageId);
+
+        if (!message) {
+            throw new Error("Message not found");
+        }
+
+        if (message.senderId !== args.clerkId) {
+            throw new Error("Unauthorized to delete this message");
+        }
+
+        await ctx.db.patch(args.messageId, {
+            deleted: true
+        });
+
+        // Optionally update the conversation's lastMessage if this was it
+        // Note: For simplicity, we keep the lastMessage intact on the conversation record,
+        // or we could query the *next* most recent message. 
+    }
+});

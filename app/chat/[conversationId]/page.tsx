@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Id } from "../../../convex/_generated/dataModel";
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 
 export default function SingleChatPage({ params }: { params: { conversationId: string } }) {
   const { user } = useUser();
@@ -29,6 +30,7 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
   } : "skip");
 
   const sendMessage = useMutation(api.messages.sendMessage);
+  const deleteMessage = useMutation(api.messages.deleteMessage);
   const setTyping = useMutation(api.conversations.setTyping);
   const markAsRead = useMutation(api.conversations.markAsRead);
 
@@ -148,6 +150,18 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
     }
   };
 
+  const handleDeleteMessage = async (messageId: Id<"messages">) => {
+    if (!user) return;
+    try {
+      await deleteMessage({
+        messageId,
+        clerkId: user.id
+      });
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+    }
+  };
+
   const formatTimestamp = (timestamp: number) => {
     const messageDate = new Date(timestamp);
     const now = new Date();
@@ -235,7 +249,7 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
                 return (
                   <div 
                     key={msg._id} 
-                    className={`flex gap-3 w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${isMe ? "justify-end" : "justify-start"}`}
+                    className={`flex gap-3 w-full animate-in fade-in slide-in-from-bottom-2 duration-300 group ${isMe ? "justify-end" : "justify-start"}`}
                   >
                     {!isMe && (
                       <Avatar className="h-8 w-8 mt-auto mb-1 border border-gray-100 flex-shrink-0 shadow-sm">
@@ -249,15 +263,28 @@ export default function SingleChatPage({ params }: { params: { conversationId: s
                     <div className={`max-w-[75%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                       {!isMe && <span className="text-[11px] font-medium text-gray-500 mb-1 ml-1">{msg.sender?.name}</span>}
                       
-                      <div 
-                        className={`px-4 py-2.5 rounded-2xl ${
-                          isMe 
-                            ? "bg-gradient-to-tr from-blue-600 to-blue-500 text-white rounded-br-sm shadow-md shadow-blue-500/20" 
-                            : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm drop-shadow-sm"
-                        }`}
-                        style={{ wordBreak: 'break-word' }}
-                      >
-                        {msg.body}
+                      <div className="flex items-center gap-2">
+                        {isMe && !msg.deleted && (
+                          <button
+                            onClick={() => handleDeleteMessage(msg._id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                            title="Delete message"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        <div 
+                          className={`px-4 py-2.5 rounded-2xl ${
+                            msg.deleted
+                              ? "bg-gray-50 border border-gray-200 text-gray-500 italic shadow-sm"
+                              : isMe 
+                                ? "bg-gradient-to-tr from-blue-600 to-blue-500 text-white rounded-br-sm shadow-md shadow-blue-500/20" 
+                                : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm drop-shadow-sm"
+                          }`}
+                          style={{ wordBreak: 'break-word' }}
+                        >
+                          {msg.deleted ? "This message was deleted" : msg.body}
+                        </div>
                       </div>
                       
                       <span className={`text-[10px] text-gray-400 mt-1 ${isMe ? "mr-1" : "ml-1"}`}>
